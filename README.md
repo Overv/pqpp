@@ -12,7 +12,6 @@ To do
 -----
 
 * Use variadic templates for parameters in queries
-* Distinguish `NULL` from empty string
 * Prepared statements
 * Support for binary data (`BLOB`, `TEXT` with `\0` bytes)
 * Notification support

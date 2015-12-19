@@ -9,6 +9,7 @@ int main() {
     db.exec("INSERT INTO people VALUES ($1, $2)", {"John", "26"});
     db.exec("INSERT INTO people VALUES ($1, $2)", {"Fred", "53"});
     db.exec("INSERT INTO people VALUES ($1, $2)", {"Lisa", "37"});
+    db.exec("INSERT INTO people VALUES (NULL, $1)", {"18"});
 
     auto rows = db.exec("SELECT * FROM people ORDER BY age ASC");
 
@@ -16,7 +17,9 @@ int main() {
         int age = row["age"];
         std::string name = row["name"];
 
-        std::cout << name << " is " << age << " years old" << std::endl;
+        if (!row["name"].is_null()) {
+            std::cout << name << " is " << age << " years old" << std::endl;
+        }
     }
 
     db.exec("DROP TABLE people");

@@ -22,18 +22,23 @@ namespace pq {
     class value {
     public:
         value() {}
-        value(const string& val) : val(val) {}
+        value(const string& val, bool null) : val(val), null(null) {}
+
+        bool is_null() const {
+            return null;
+        }
 
         template<typename T> T get() const {
             return static_cast<T>(val);
         }
 
-        template <typename T> operator T() {
+        template <typename T> operator T() const {
             return get<T>();
         }
 
     private:
         string val;
+        bool null;
     };
 
     template<> int value::get<int>() const {
@@ -121,7 +126,9 @@ namespace pq {
 
                     for (auto& column : columnIds) {
                         string val = PQgetvalue(res.get(), r, column.second);
-                        row.emplace(column.first, val);
+                        bool isNull = PQgetisnull(res.get(), r, column.second);
+
+                        row.emplace(column.first, value(val, isNull));
                     }
 
                     rows.push_back(row);
