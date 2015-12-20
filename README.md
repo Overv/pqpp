@@ -4,7 +4,7 @@ pqpp
 This is a header only library with simple libpq bindings for modern C++. It
 provides the following features:
 
-* Memory safety (connections are safely managed using `shared_ptr`)
+* Memory safety (libpq objects are managed with `shared_ptr` and `unique_ptr`)
 * Errors are propagated as `runtime_error` exceptions with clear descriptions
 * Rows are returned as column -> value mappings that can be cast to common types
 
