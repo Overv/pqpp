@@ -269,6 +269,16 @@ namespace pq {
             make_value_list(list, rest...);
             return list;
         }
+
+        static vector<value> make_value_list(const vector<string>& args) {
+            vector<value> list;
+
+            for (auto& str : args) {
+                list.push_back(value(str, false));
+            }
+
+            return list;
+        }
     };
 }
 
