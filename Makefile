@@ -1,4 +1,4 @@
-CC = clang++
+CC = g++
 CFLAGS =
 LDFLAGS = -lpq
 
