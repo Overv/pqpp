@@ -95,6 +95,12 @@ namespace pq {
     }
 
     template<typename... Args>
+    void _make_value_list(vector<value>& list, const string& str, Args... rest) {
+        list.push_back(value(str, false));
+        _make_value_list(list, rest...);
+    }
+
+    template<typename... Args>
     void _make_value_list(vector<value>& list, nullptr_t null, Args... rest) {
         list.push_back(value("", true));
         _make_value_list(list, rest...);
