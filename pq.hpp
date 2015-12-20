@@ -80,40 +80,6 @@ namespace pq {
         return val != "false" && val != "";
     }
 
-    // Helper for parameterized queries
-    void _make_value_list(vector<value>& list) {}
-
-    template<typename T, typename... Args>
-    void _make_value_list(vector<value>& list, T n, Args... rest) {
-        list.push_back(value(to_string(n), false));
-        _make_value_list(list, rest...);
-    }
-
-    template<typename... Args>
-    void _make_value_list(vector<value>& list, const char* str, Args... rest) {
-        list.push_back(value(str, false));
-        _make_value_list(list, rest...);
-    }
-
-    template<typename... Args>
-    void _make_value_list(vector<value>& list, const string& str, Args... rest) {
-        list.push_back(value(str, false));
-        _make_value_list(list, rest...);
-    }
-
-    template<typename... Args>
-    void _make_value_list(vector<value>& list, nullptr_t null, Args... rest) {
-        list.push_back(value("", true));
-        _make_value_list(list, rest...);
-    }
-
-    template<typename... Args>
-    vector<value> _make_value_list(Args... rest) {
-        vector<value> list;
-        _make_value_list(list, rest...);
-        return list;
-    }
-
     // Notification
     class notification {
     public:
@@ -156,7 +122,7 @@ namespace pq {
 
         template<typename... Args>
         vector<row_t> exec(const string& query, Args... param_args) {
-            vector<value> args = _make_value_list(param_args...);
+            vector<value> args = make_value_list(param_args...);
             vector<const char*> pq_args = make_pq_args(args);
 
             auto tmp = PQexecParams(conn.get(), query.c_str(), pq_args.size(), nullptr, pq_args.data(), nullptr, nullptr, 0);
@@ -169,7 +135,7 @@ namespace pq {
 
         template<typename... Args>
         vector<row_t> exec(const prepared_statement& stmt, Args... param_args) {
-            vector<value> args = _make_value_list(param_args...);
+            vector<value> args = make_value_list(param_args...);
             vector<const char*> pq_args = make_pq_args(args);
 
             auto tmp = PQexecPrepared(conn.get(), stmt.get_name().c_str(), stmt.get_parameters(), pq_args.data(), nullptr, nullptr, 0);
@@ -268,6 +234,40 @@ namespace pq {
             } else {
                 throw runtime_error(PQerrorMessage(conn.get()));
             }
+        }
+
+        // Helper for parameterized queries
+        static void make_value_list(vector<value>& list) {}
+
+        template<typename T, typename... Args>
+        static void make_value_list(vector<value>& list, T n, Args... rest) {
+            list.push_back(value(to_string(n), false));
+            make_value_list(list, rest...);
+        }
+
+        template<typename... Args>
+        static void make_value_list(vector<value>& list, const char* str, Args... rest) {
+            list.push_back(value(str, false));
+            make_value_list(list, rest...);
+        }
+
+        template<typename... Args>
+        static void make_value_list(vector<value>& list, const string& str, Args... rest) {
+            list.push_back(value(str, false));
+            make_value_list(list, rest...);
+        }
+
+        template<typename... Args>
+        static void make_value_list(vector<value>& list, nullptr_t null, Args... rest) {
+            list.push_back(value("", true));
+            make_value_list(list, rest...);
+        }
+
+        template<typename... Args>
+        static vector<value> make_value_list(Args... rest) {
+            vector<value> list;
+            make_value_list(list, rest...);
+            return list;
         }
     };
 }
