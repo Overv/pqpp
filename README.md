@@ -13,7 +13,6 @@ To do
 
 * Prepared statements
 * Support for binary data (`BLOB`, `TEXT` with `\0` bytes)
-* Notification support
 * Wrapper for cursors
 
 Example

@@ -107,6 +107,18 @@ namespace pq {
         return list;
     }
 
+    // Notification
+    class notification {
+    public:
+        notification(string channel, string payload) : channel(channel), payload(payload) {}
+
+        const string& get_channel() const { return channel; }
+        const string& get_payload() const { return payload; }
+
+    private:
+        string channel, payload;
+    };
+
     // Row is represented as hash table with column names
     typedef map<string, value> row_t;
 
@@ -174,6 +186,28 @@ namespace pq {
             } else {
                 throw runtime_error(PQerrorMessage(conn.get()));
             }
+        }
+
+        vector<notification> get_notifications() {
+            // Poll server for notifications
+            PQconsumeInput(conn.get());
+
+            // Get latest notifications
+            vector<notification> notifications;
+
+            unique_ptr<PGnotify, function<void(PGnotify*)>> raw_notification(nullptr, [=](PGnotify* notification) {
+                PQfreemem(notification);
+            });
+
+            do {
+                raw_notification.reset(PQnotifies(conn.get()));
+
+                if (raw_notification != nullptr) {
+                    notifications.push_back(notification(raw_notification->relname, raw_notification->extra));
+                }
+            } while (raw_notification != nullptr);
+
+            return notifications;
         }
 
     private:
