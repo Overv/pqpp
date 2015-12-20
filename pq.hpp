@@ -18,6 +18,7 @@ namespace pq {
     using std::function;
     using std::map;
     using std::to_string;
+    using std::nullptr_t;
 
     // Container for PostgreSQL row values that allows for easy conversions
     class value {
@@ -79,24 +80,30 @@ namespace pq {
     }
 
     // Helper for parameterized queries
-    void _make_string_list(vector<string>& list) {}
+    void _make_value_list(vector<value>& list) {}
 
     template<typename T, typename... Args>
-    void _make_string_list(vector<string>& list, T n, Args... rest) {
-        list.push_back(to_string(n));
-        _make_string_list(list, rest...);
+    void _make_value_list(vector<value>& list, T n, Args... rest) {
+        list.push_back(value(to_string(n), false));
+        _make_value_list(list, rest...);
     }
 
     template<typename... Args>
-    void _make_string_list(vector<string>& list, const char* str, Args... rest) {
-        list.push_back(str);
-        _make_string_list(list, rest...);
+    void _make_value_list(vector<value>& list, const char* str, Args... rest) {
+        list.push_back(value(str, false));
+        _make_value_list(list, rest...);
     }
 
     template<typename... Args>
-    vector<string> _make_string_list(Args... rest) {
-        vector<string> list;
-        _make_string_list(list, rest...);
+    void _make_value_list(vector<value>& list, nullptr_t null, Args... rest) {
+        list.push_back(value("", true));
+        _make_value_list(list, rest...);
+    }
+
+    template<typename... Args>
+    vector<value> _make_value_list(Args... rest) {
+        vector<value> list;
+        _make_value_list(list, rest...);
         return list;
     }
 
@@ -117,11 +124,15 @@ namespace pq {
 
         template<typename... Args>
         vector<row_t> exec(const string& query, Args... param_args) {
-            vector<string> params = _make_string_list(param_args...);
+            vector<value> params = _make_value_list(param_args...);
             vector<const char*> values;
 
-            for (auto& str : params) {
-                values.push_back(str.c_str());
+            for (auto& val : params) {
+                if (val.is_null()) {
+                    values.push_back(nullptr);
+                } else {
+                    values.push_back(val.get<string>().c_str());
+                }
             }
 
             auto tmp = PQexecParams(conn.get(), query.c_str(), values.size(), nullptr, values.data(), nullptr, nullptr, 0);
