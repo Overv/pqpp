@@ -159,7 +159,7 @@ namespace pq {
             }
         }
 
-        vector<notification> get_notifications() {
+        vector<notification> get_notifications(bool wait = false) {
             // Poll server for notifications
             PQconsumeInput(conn.get());
 
@@ -177,6 +177,20 @@ namespace pq {
                     notifications.push_back(notification(raw_notification->relname, raw_notification->extra));
                 }
             } while (raw_notification != nullptr);
+
+            // If there were no notifications, wait for them if requested
+            if (notifications.size() == 0 && wait) {
+                auto sock = PQsocket(conn.get());
+
+                fd_set mask;
+                FD_ZERO(&mask);
+                FD_SET(sock, &mask);
+
+                select(sock + 1, &mask, nullptr, nullptr, nullptr);
+
+                // Try again
+                return get_notifications(wait);
+            }
 
             return notifications;
         }
