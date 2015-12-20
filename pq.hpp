@@ -19,6 +19,7 @@ namespace pq {
     using std::map;
     using std::to_string;
     using std::nullptr_t;
+    using std::move;
 
     // Container for PostgreSQL row values that allows for easy conversions
     class value {
@@ -125,6 +126,19 @@ namespace pq {
         string channel, payload;
     };
 
+    // Prepared statement
+    class prepared_statement {
+    public:
+        prepared_statement(const string& name, int parameters) : name(name), parameters(parameters) {}
+
+        const string& get_name() const { return name; }
+        int get_parameters() const { return parameters; }
+
+    private:
+        string name;
+        int parameters;
+    };
+
     // Row is represented as hash table with column names
     typedef map<string, value> row_t;
 
@@ -142,22 +156,84 @@ namespace pq {
 
         template<typename... Args>
         vector<row_t> exec(const string& query, Args... param_args) {
-            vector<value> params = _make_value_list(param_args...);
-            vector<const char*> values;
+            vector<value> args = _make_value_list(param_args...);
+            vector<const char*> pq_args = make_pq_args(args);
 
-            for (auto& val : params) {
-                if (val.is_null()) {
-                    values.push_back(nullptr);
-                } else {
-                    values.push_back(val.get<string>().c_str());
-                }
-            }
-
-            auto tmp = PQexecParams(conn.get(), query.c_str(), values.size(), nullptr, values.data(), nullptr, nullptr, 0);
+            auto tmp = PQexecParams(conn.get(), query.c_str(), pq_args.size(), nullptr, pq_args.data(), nullptr, nullptr, 0);
             auto res = unique_ptr<PGresult, function<void(PGresult*)>>(tmp, [=](PGresult* res) {
                 PQclear(res);
             });
 
+            return get_rows(move(res));
+        }
+
+        template<typename... Args>
+        vector<row_t> exec(const prepared_statement& stmt, Args... param_args) {
+            vector<value> args = _make_value_list(param_args...);
+            vector<const char*> pq_args = make_pq_args(args);
+
+            auto tmp = PQexecPrepared(conn.get(), stmt.get_name().c_str(), stmt.get_parameters(), pq_args.data(), nullptr, nullptr, 0);
+            auto res = unique_ptr<PGresult, function<void(PGresult*)>>(tmp, [=](PGresult* res) {
+                PQclear(res);
+            });
+
+            return get_rows(move(res));
+        }
+
+        prepared_statement prepare(const string& name, const string& query, int parameters) {
+            auto tmp = PQprepare(conn.get(), name.c_str(), query.c_str(), parameters, nullptr);
+            auto res = unique_ptr<PGresult, function<void(PGresult*)>>(tmp, [=](PGresult* res) {
+                PQclear(res);
+            });
+
+            if (PQresultStatus(res.get()) == PGRES_COMMAND_OK) {
+                return prepared_statement(name, parameters);
+            } else {
+                throw runtime_error(PQerrorMessage(conn.get()));
+            }
+        }
+
+        vector<notification> get_notifications() {
+            // Poll server for notifications
+            PQconsumeInput(conn.get());
+
+            // Get latest notifications
+            vector<notification> notifications;
+
+            unique_ptr<PGnotify, function<void(PGnotify*)>> raw_notification(nullptr, [=](PGnotify* notification) {
+                PQfreemem(notification);
+            });
+
+            do {
+                raw_notification.reset(PQnotifies(conn.get()));
+
+                if (raw_notification != nullptr) {
+                    notifications.push_back(notification(raw_notification->relname, raw_notification->extra));
+                }
+            } while (raw_notification != nullptr);
+
+            return notifications;
+        }
+
+    private:
+        shared_ptr<PGconn> conn;
+
+        // Warning: result is only valid as long as arguments is in scope
+        vector<const char*> make_pq_args(const vector<value>& arguments) {
+            vector<const char*> pq_args;
+
+            for (auto& val : arguments) {
+                if (val.is_null()) {
+                    pq_args.push_back(nullptr);
+                } else {
+                    pq_args.push_back(val.get<string>().c_str());
+                }
+            }
+
+            return pq_args;
+        }
+
+        vector<row_t> get_rows(unique_ptr<PGresult, function<void(PGresult*)>>&& res) {
             int status = PQresultStatus(res.get());
 
             if (status == PGRES_COMMAND_OK) {
@@ -193,31 +269,6 @@ namespace pq {
                 throw runtime_error(PQerrorMessage(conn.get()));
             }
         }
-
-        vector<notification> get_notifications() {
-            // Poll server for notifications
-            PQconsumeInput(conn.get());
-
-            // Get latest notifications
-            vector<notification> notifications;
-
-            unique_ptr<PGnotify, function<void(PGnotify*)>> raw_notification(nullptr, [=](PGnotify* notification) {
-                PQfreemem(notification);
-            });
-
-            do {
-                raw_notification.reset(PQnotifies(conn.get()));
-
-                if (raw_notification != nullptr) {
-                    notifications.push_back(notification(raw_notification->relname, raw_notification->extra));
-                }
-            } while (raw_notification != nullptr);
-
-            return notifications;
-        }
-
-    private:
-        shared_ptr<PGconn> conn;
     };
 }
 
