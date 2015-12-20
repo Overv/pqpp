@@ -11,7 +11,6 @@ provides the following features:
 To do
 -----
 
-* Use variadic templates for parameters in queries
 * Prepared statements
 * Support for binary data (`BLOB`, `TEXT` with `\0` bytes)
 * Notification support
@@ -29,9 +28,10 @@ int main() {
 
     db.exec("CREATE TABLE people (name TEXT, age INTEGER)");
 
-    db.exec("INSERT INTO people VALUES ($1, $2)", {"John", "26"});
-    db.exec("INSERT INTO people VALUES ($1, $2)", {"Fred", "53"});
-    db.exec("INSERT INTO people VALUES ($1, $2)", {"Lisa", "37"});
+    db.exec("INSERT INTO people VALUES ($1, $2)", "John", 26);
+    db.exec("INSERT INTO people VALUES ($1, $2)", "Fred", 53);
+    db.exec("INSERT INTO people VALUES ($1, $2)", "Lisa", 37);
+    db.exec("INSERT INTO people VALUES (NULL, $1)", 18);
 
     auto rows = db.exec("SELECT * FROM people ORDER BY age ASC");
 
@@ -39,7 +39,9 @@ int main() {
         int age = row["age"];
         std::string name = row["name"];
 
-        std::cout << name << " is " << age << " years old" << std::endl;
+        if (!row["name"].is_null()) {
+            std::cout << name << " is " << age << " years old" << std::endl;
+        }
     }
 
     db.exec("DROP TABLE people");

@@ -17,6 +17,7 @@ namespace pq {
     using std::runtime_error;
     using std::function;
     using std::map;
+    using std::to_string;
 
     // Container for PostgreSQL row values that allows for easy conversions
     class value {
@@ -77,6 +78,28 @@ namespace pq {
         return val != "false" && val != "";
     }
 
+    // Helper for parameterized queries
+    void _make_string_list(vector<string>& list) {}
+
+    template<typename T, typename... Args>
+    void _make_string_list(vector<string>& list, T n, Args... rest) {
+        list.push_back(to_string(n));
+        _make_string_list(list, rest...);
+    }
+
+    template<typename... Args>
+    void _make_string_list(vector<string>& list, const char* str, Args... rest) {
+        list.push_back(str);
+        _make_string_list(list, rest...);
+    }
+
+    template<typename... Args>
+    vector<string> _make_string_list(Args... rest) {
+        vector<string> list;
+        _make_string_list(list, rest...);
+        return list;
+    }
+
     // Row is represented as hash table with column names
     typedef map<string, value> row_t;
 
@@ -92,7 +115,9 @@ namespace pq {
             }
         }
 
-        vector<row_t> exec(const string& query, const vector<string>& params = vector<string>()) {
+        template<typename... Args>
+        vector<row_t> exec(const string& query, Args... param_args) {
+            vector<string> params = _make_string_list(param_args...);
             vector<const char*> values;
 
             for (auto& str : params) {

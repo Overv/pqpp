@@ -6,10 +6,10 @@ int main() {
 
     db.exec("CREATE TABLE people (name TEXT, age INTEGER)");
 
-    db.exec("INSERT INTO people VALUES ($1, $2)", {"John", "26"});
-    db.exec("INSERT INTO people VALUES ($1, $2)", {"Fred", "53"});
-    db.exec("INSERT INTO people VALUES ($1, $2)", {"Lisa", "37"});
-    db.exec("INSERT INTO people VALUES (NULL, $1)", {"18"});
+    db.exec("INSERT INTO people VALUES ($1, $2)", "John", 26);
+    db.exec("INSERT INTO people VALUES ($1, $2)", "Fred", 53);
+    db.exec("INSERT INTO people VALUES ($1, $2)", "Lisa", 37);
+    db.exec("INSERT INTO people VALUES (NULL, $1)", 18);
 
     auto rows = db.exec("SELECT * FROM people ORDER BY age ASC");
 
