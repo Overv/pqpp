@@ -8,6 +8,7 @@
 #include <memory>
 #include <stdexcept>
 #include <map>
+#include <tuple>
 
 namespace pq {
     using std::string;
@@ -20,6 +21,9 @@ namespace pq {
     using std::to_string;
     using std::nullptr_t;
     using std::move;
+    using std::tuple;
+    using std::get;
+    using std::make_tuple;
 
     // Container for PostgreSQL row values that allows for easy conversions
     class value {
@@ -118,6 +122,21 @@ namespace pq {
             if (PQstatus(conn.get()) != CONNECTION_OK) {
                 throw runtime_error(PQerrorMessage(conn.get()));
             }
+        }
+        
+        connection(const vector<tuple<string, string>>& params) {
+            connect_params(params);
+        }
+        
+        connection(const string& host, const string& db, const string& user, const string& pass) {
+            vector<tuple<string, string>> params = {
+                make_tuple("host", host),
+                make_tuple("dbname", db),
+                make_tuple("user", user),
+                make_tuple("password", pass)
+            };
+            
+            connect_params(params);
         }
 
         template<typename... Args>
@@ -246,6 +265,27 @@ namespace pq {
 
                 return rows;
             } else {
+                throw runtime_error(PQerrorMessage(conn.get()));
+            }
+        }
+        
+        void connect_params(const vector<tuple<string, string>>& params) {
+            vector<const char*> keywords;
+            vector<const char*> values;
+            
+            for (auto& tuple : params) {
+                keywords.push_back(get<0>(tuple).c_str());
+                values.push_back(get<1>(tuple).c_str());
+            }
+            
+            keywords.push_back(nullptr);
+            values.push_back(nullptr);
+            
+            conn = shared_ptr<PGconn>(PQconnectdbParams(keywords.data(), values.data(), false), [=](PGconn* conn) {
+                PQfinish(conn);
+            });
+            
+            if (PQstatus(conn.get()) != CONNECTION_OK) {
                 throw runtime_error(PQerrorMessage(conn.get()));
             }
         }
