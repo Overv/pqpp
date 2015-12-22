@@ -34,6 +34,10 @@ namespace pq {
         bool is_null() const {
             return null;
         }
+        
+        const string& str() const {
+            return val;
+        }
 
         template<typename T> T get() const {
             return static_cast<T>(val);
@@ -225,7 +229,7 @@ namespace pq {
                 if (val.is_null()) {
                     pq_args.push_back(nullptr);
                 } else {
-                    pq_args.push_back(val.get<string>().c_str());
+                    pq_args.push_back(val.str().c_str());
                 }
             }
 
