@@ -9,6 +9,7 @@
 #include <stdexcept>
 #include <map>
 #include <tuple>
+#include <functional>
 
 namespace pq {
     using std::string;
