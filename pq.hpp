@@ -10,6 +10,7 @@
 #include <map>
 #include <tuple>
 #include <functional>
+#include <sstream>
 
 namespace pq {
     using std::string;
@@ -25,7 +26,52 @@ namespace pq {
     using std::tuple;
     using std::get;
     using std::make_tuple;
+    using std::stringstream
+    
+    // Container for binary values - PostgreSQL BYTEA type
+    class bytea {
+    public:
+        bytea() {
+            data_ = {};
+        }
 
+        bytea(const string s) {  // Interpret \xdeadbeef (We just cut off the first two characters.)
+            for(int i = 2; i < s.size(); i+=2) {
+                unsigned int x;
+                stringstream ss;
+                ss << std::hex << s.substr(i, 2);
+                ss >> x;
+                data_.push_back((unsigned char)x);
+            }
+        }
+
+        bytea(const bytea& cpy) {
+            data_ = std::vector<unsigned char>(cpy.get());
+        }
+
+        bytea(const vector<unsigned char> d) {
+            data_ = vector<unsigned char>(d);
+        }
+
+        size_t size() const {
+            return data_.size();
+        }
+
+        unsigned char operator[](const int index) const {
+            return data_[index];
+        }
+
+        unsigned char& operator[](const int index) {  // Notice: not const-safe
+            return data_[index];
+        }
+
+        const vector<unsigned char> get() const {
+            return data_;
+        }
+    private:
+        vector<unsigned char> data_;
+    };
+    
     // Container for PostgreSQL row values that allows for easy conversions
     class value {
     public:
@@ -87,6 +133,10 @@ namespace pq {
 
     template<> bool value::get<bool>() const {
         return val != "false" && val != "";
+    }
+    
+    template<> bytea value::get<bytea>() const {
+        return bytea(val);
     }
 
     // Notification
